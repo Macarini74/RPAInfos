@@ -1,0 +1,23 @@
+Nome do sistema operacional:               Microsoft Windows 11 Home Single Language
+Fabricante do sistema operacional:         Microsoft Corporation
+Fabricante do sistema:                     Acer
+Modelo do sistema:                         Nitro AN515-58
+Mem¢ria f¡sica total:                      16.088 MB
+
+SerialNumber          
+------------          
+NHQJCAL006411001A99Z00
+
+
+ConfiguredClockSpeed : 3200
+Tipo DDR4
+ConfiguredClockSpeed : 3200
+Tipo DDR4
+
+Processador: 12th Gen Intel(R) Core(TM) i7-12650H
+
+UserName      
+--------      
+Macarini\iagos
+
+
