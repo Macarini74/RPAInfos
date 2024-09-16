@@ -1,8 +1,11 @@
 import subprocess
 import os
+import sqlite3
+
 # Pegar status do firewall
 # Pegando informações do SO e quantos GB RAM:
 def getSystemInfo():
+
     comando = "systeminfo"
 
     result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
@@ -26,31 +29,22 @@ def getSystemInfo():
     nome_sistema_operacional = variaveis.get("Nome do sistema operacional")
     modelo_sistema = variaveis.get("Modelo do sistema")
     memoria_fisica_total = variaveis.get("Mem¢ria f¡sica total")
+    fabricante_sistema = variaveis.get("Fabricante do sistema")
 
-    # Salva as linhas desejadas em um arquivo
-    linhas_desejadas = [
-        f"{nome_sistema_operacional}\n",
-        f"{modelo_sistema}\n",
-        f"{memoria_fisica_total}\n",
-    ]
+    return nome_sistema_operacional, modelo_sistema, memoria_fisica_total, fabricante_sistema
 
-    with open("infos.txt", "w", encoding="utf-8") as arqSaida:
-        arqSaida.writelines(linhas_desejadas)
 
-    arqSaida.close()
 
 # Pegando número de série da máquina
 def getSerialNumber():
+
     comando = "Get-WmiObject -Class Win32_BIOS | Select-Object -Property SerialNumber"
 
     result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
 
     serial_number = result.stdout.split('\n')[3].strip() # Variavel que vai pro DB
-
-    with open("infos.txt", "a", encoding="utf-8") as arqSerial:
-        arqSerial.write(f'Número de série:   {serial_number}\n')
     
-    arqSerial.close()
+    return serial_number
 
 # Pegando qual DDR é a Mem Ram
 def getDDR():
@@ -89,23 +83,14 @@ def getDDR():
 
     tipo = ddr_type.get(tipo, 'Descohecido')
 
-    # As variáveis que vão pro DB aqui são: clock speed e tipo
-
-    print(f'Clock SPeed: {clock_speed}')
-    print(f'DDR Type: {tipo}')
-
-    linhas_desejadas = [f'{clock_speed}\n',
-                        f'{tipo}\n']
-    
-    with open("infos.txt", "a", encoding="utf-8") as arqSaida:
-        arqSaida.writelines(linhas_desejadas)
-
     arqMemory.close()
     arqRAM.close()
-    #arqSaida.close()
+    
+    return clock_speed, tipo
 
 # Pegando informações do processador
 def getProcInfo():
+
     comando = "Get-WmiObject -Class Win32_Processor | Select-Object -Property Name"
 
     result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
@@ -120,30 +105,41 @@ def getProcInfo():
 
     for linha in linhas:
         if "Gen" in linha:
-            with open("infos.txt", "a", encoding="utf-8") as arqSaida:
-                arqSaida.writelines(f"\nProcessador: {linha}") # Essa variavel vai para o DB
+            proc = linha
 
-    arqSaida.close()
+    return proc
+
 
 # Pegar o usuário da máquina
 def getUser():
+
     comando = "Get-WmiObject -Class Win32_ComputerSystem | Select-Object -Property UserName"
 
     result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
 
     user = result.stdout.split('\n')[3].strip()
 
-    with open("infos.txt", "a", encoding="utf-8") as arqSaida:
-        arqSaida.write(f'Usuario:   {user}') # Essa variavel vai para o DB
-
     if os.path.exists('aux.txt'):
         os.remove('aux.txt')
-    
-    arqSaida.close()
+
+    return user    
+
 
 if __name__ == '__main__':
-    getSystemInfo()
-    getSerialNumber()
-    getDDR()
-    getProcInfo()
-    getUser()
+    # Conectando ao BD
+    conn = sqlite3.connect('Data.db')
+
+    cursor = conn.cursor()
+
+    op_sis, model_sis, mem_ram, fab_sis = getSystemInfo()
+    serial = getSerialNumber()
+    clock_speed, ddr = getDDR()
+    proc = getProcInfo()
+    user = getUser()
+
+    cursor.execute("""INSERT INTO infomaq (OpSis, ModelSis, FabSis,RamMem, Serial, ClockRam, DDR, Proc, User) VALUES (?,?,?,?,?,?,?,?,?)
+                   """, (op_sis, model_sis, fab_sis, mem_ram, serial, clock_speed, ddr, proc, user))
+    
+    conn.commit()
+
+    conn.close()
