@@ -1,6 +1,7 @@
 import subprocess
 import os
 import sqlite3
+import psutil
 
 # Pegar status do firewall
 # Pegando informações do SO e quantos GB RAM:
@@ -32,8 +33,6 @@ def getSystemInfo():
     fabricante_sistema = variaveis.get("Fabricante do sistema")
 
     return nome_sistema_operacional, modelo_sistema, memoria_fisica_total, fabricante_sistema
-
-
 
 # Pegando número de série da máquina
 def getSerialNumber():
@@ -124,6 +123,12 @@ def getUser():
 
     return user    
 
+def getStatusAntVirus():
+    for service in psutil.win_service_iter():
+        if service.name() == 'mpssvc':
+            status = service.status()
+    
+    return status
 
 if __name__ == '__main__':
     # Conectando ao BD
@@ -136,9 +141,10 @@ if __name__ == '__main__':
     clock_speed, ddr = getDDR()
     proc = getProcInfo()
     user = getUser()
+    status = getStatusAntVirus()
 
-    cursor.execute("""INSERT INTO infomaq (OpSis, ModelSis, FabSis,RamMem, Serial, ClockRam, DDR, Proc, User) VALUES (?,?,?,?,?,?,?,?,?)
-                   """, (op_sis, model_sis, fab_sis, mem_ram, serial, clock_speed, ddr, proc, user))
+    cursor.execute("""INSERT INTO infomaq (OpSis, ModelSis, FabSis,RamMem, Serial, ClockRam, DDR, Proc, User, AntiVirus) VALUES (?,?,?,?,?,?,?,?,?,?)
+                   """, (op_sis, model_sis, fab_sis, mem_ram, serial, clock_speed, ddr, proc, user, status))
     
     conn.commit()
 
