@@ -3,7 +3,6 @@ import os
 import sqlite3
 import psutil
 
-# Pegar status do firewall
 # Pegando informações do SO e quantos GB RAM:
 def getSystemInfo():
 
@@ -108,7 +107,6 @@ def getProcInfo():
 
     return proc
 
-
 # Pegar o usuário da máquina
 def getUser():
 
@@ -123,6 +121,7 @@ def getUser():
 
     return user    
 
+# Pega o status do Anti Virus (Quando for colocar na produção, trocar o nome do serviço)
 def getStatusAntVirus():
     for service in psutil.win_service_iter():
         if service.name() == 'mpssvc':
