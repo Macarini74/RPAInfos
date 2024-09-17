@@ -135,6 +135,22 @@ if __name__ == '__main__':
 
     cursor = conn.cursor()
 
+    # Criando a tabela (schema)
+    cursor.execute("""
+    CREATE TABLE infomaq (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    Proc TEXT,
+                    User TEXT,
+                    OpSis TEXT,
+                    FabSis TEXT,
+                    ModelSis TEXT,
+                    RamMem TEXT,
+                    Serial TEXT,
+                    ClockRam TEXT,
+                    DDR TEXT,
+                    AntiVirus TEXT);
+""")
+
     op_sis, model_sis, mem_ram, fab_sis = getSystemInfo()
     serial = getSerialNumber()
     clock_speed, ddr = getDDR()
