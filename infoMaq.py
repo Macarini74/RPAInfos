@@ -2,146 +2,152 @@ import subprocess
 import os
 import sqlite3
 import psutil
+import schedule
+import time
+import win32serviceutil
+import win32event
+import win32service
 
-# Pegando informações do SO e quantos GB RAM:
-def getSystemInfo():
+class DataCollector:
+    def __init__(self):
+        self.conn = sqlite3.connect('Data.db')
+        self.cursor = self.conn.cursor()
+        self.initColect()
 
-    comando = "systeminfo"
+    # Pegando informações do SO e quantos GB RAM:
+    def getSystemInfo(self):
 
-    result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
+        comando = "systeminfo"
 
-    with open("aux.txt", "w", encoding="utf-8") as arqInfo:
-        arqInfo.write(result.stdout)
+        result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
 
-    with open("aux.txt", "r", encoding="utf-8") as arqInfo:
-        linhas = arqInfo.readlines()
+        with open("aux.txt", "w", encoding="utf-8") as arqInfo:
+            arqInfo.write(result.stdout)
 
-    # Dicionário para armazenar as variáveis
-    variaveis = {}
+        with open("aux.txt", "r", encoding="utf-8") as arqInfo:
+            linhas = arqInfo.readlines()
 
-    # Processa cada linha e salva as informações após os dois pontos
-    for linha in linhas:
-        if ":" in linha:
-            chave, valor = linha.split(":", 1)
-            variaveis[chave.strip()] = valor.strip()
+        # Dicionário para armazenar as variáveis
+        variaveis = {}
 
-    # Exemplo de acesso às variáveis as quais vão para o db
-    nome_sistema_operacional = variaveis.get("Nome do sistema operacional")
-    modelo_sistema = variaveis.get("Modelo do sistema")
-    memoria_fisica_total = variaveis.get("Mem¢ria f¡sica total")
-    fabricante_sistema = variaveis.get("Fabricante do sistema")
+        # Processa cada linha e salva as informações após os dois pontos
+        for linha in linhas:
+            if ":" in linha:
+                chave, valor = linha.split(":", 1)
+                variaveis[chave.strip()] = valor.strip()
 
-    return nome_sistema_operacional, modelo_sistema, memoria_fisica_total, fabricante_sistema
+        # Exemplo de acesso às variáveis as quais vão para o db
+        nome_sistema_operacional = variaveis.get("Nome do sistema operacional")
+        modelo_sistema = variaveis.get("Modelo do sistema")
+        memoria_fisica_total = variaveis.get("Mem¢ria f¡sica total")
+        fabricante_sistema = variaveis.get("Fabricante do sistema")
 
-# Pegando número de série da máquina
-def getSerialNumber():
+        return nome_sistema_operacional, modelo_sistema, memoria_fisica_total, fabricante_sistema
 
-    comando = "Get-WmiObject -Class Win32_BIOS | Select-Object -Property SerialNumber"
+    # Pegando número de série da máquina
+    def getSerialNumber(self):
 
-    result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
+        comando = "Get-WmiObject -Class Win32_BIOS | Select-Object -Property SerialNumber"
 
-    serial_number = result.stdout.split('\n')[3].strip() # Variavel que vai pro DB
-    
-    return serial_number
+        result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
 
-# Pegando qual DDR é a Mem Ram
-def getDDR():
+        serial_number = result.stdout.split('\n')[3].strip() # Variavel que vai pro DB
+        
+        return serial_number
 
-    comando = "Get-WmiObject -Class Win32_PhysicalMemory | Format-List *"
+    # Pegando qual DDR é a Mem Ram
+    def getDDR(self):
 
-    result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
+        comando = "Get-WmiObject -Class Win32_PhysicalMemory | Format-List *"
 
-    with open("aux.txt", "w", encoding="utf-8") as arqMemory:
-        arqMemory.write(result.stdout)
+        result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
+
+        with open("aux.txt", "w", encoding="utf-8") as arqMemory:
+            arqMemory.write(result.stdout)
 
 
-    with open("aux.txt", "r", encoding="utf-8") as arqRAM:
-        linhas = arqRAM.readlines()
+        with open("aux.txt", "r", encoding="utf-8") as arqRAM:
+            linhas = arqRAM.readlines()
 
-    variaveis = {}
+        variaveis = {}
 
-    for linha in linhas:
-        if ":" in linha:
-            chave, valor = linha.split(":", 1)
-            variaveis[chave.strip()] = valor.strip()
+        for linha in linhas:
+            if ":" in linha:
+                chave, valor = linha.split(":", 1)
+                variaveis[chave.strip()] = valor.strip()
 
-    for chave, valor in variaveis.items():
-        print(f"{chave}: {valor}")
-    
-    clock_speed = variaveis.get('ConfiguredClockSpeed')
-    tipo = variaveis.get('SMBIOSMemoryType')
+        for chave, valor in variaveis.items():
+            print(f"{chave}: {valor}")
+        
+        clock_speed = variaveis.get('ConfiguredClockSpeed')
+        tipo = variaveis.get('SMBIOSMemoryType')
 
-    ddr_type = {
-        '20': 'DDR1',
-        '21': 'DDR2',
-        '24': 'DDR3',
-        '26': 'DDR4',
-        '27': 'DDR5',
-    }
+        ddr_type = {
+            '20': 'DDR1',
+            '21': 'DDR2',
+            '24': 'DDR3',
+            '26': 'DDR4',
+            '27': 'DDR5',
+        }
 
-    tipo = ddr_type.get(tipo, 'Descohecido')
+        tipo = ddr_type.get(tipo, 'Descohecido')
 
-    arqMemory.close()
-    arqRAM.close()
-    
-    return clock_speed, tipo
+        arqMemory.close()
+        arqRAM.close()
+        
+        return clock_speed, tipo
 
-# Pegando informações do processador
-def getProcInfo():
+    # Pegando informações do processador
+    def getProcInfo(self):
 
-    comando = "Get-WmiObject -Class Win32_Processor | Select-Object -Property Name"
+        comando = "Get-WmiObject -Class Win32_Processor | Select-Object -Property Name"
 
-    result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
+        result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
 
-    with open("aux.txt", "w", encoding="utf-8") as arqProcAux:
-        arqProcAux.write(result.stdout)
+        with open("aux.txt", "w", encoding="utf-8") as arqProcAux:
+            arqProcAux.write(result.stdout)
 
-    arqProcAux.close()
+        arqProcAux.close()
 
-    with open("aux.txt", "r", encoding="utf-8") as arqProcAux:
-        linhas = arqProcAux.readlines()
+        with open("aux.txt", "r", encoding="utf-8") as arqProcAux:
+            linhas = arqProcAux.readlines()
 
-    for linha in linhas:
-        if "Gen" in linha:
-            proc = linha
+        for linha in linhas:
+            if "Gen" in linha:
+                proc = linha
 
-    return proc
+        return proc
 
-# Pegar o usuário da máquina
-def getUser():
+    # Pegar o usuário da máquina
+    def getUser(self):
+        comando = "Get-WmiObject -Class Win32_ComputerSystem | Select-Object -Property UserName"
 
-    comando = "Get-WmiObject -Class Win32_ComputerSystem | Select-Object -Property UserName"
+        result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
 
-    result = subprocess.run(["powershell", "-Command", comando], capture_output=True, text=True)
+        user = result.stdout.split('\n')[3].strip()
 
-    user = result.stdout.split('\n')[3].strip()
+        if os.path.exists('aux.txt'):
+            os.remove('aux.txt')
 
-    if os.path.exists('aux.txt'):
-        os.remove('aux.txt')
+        return user    
 
-    return user    
+    # Pega o status do Anti Virus (Quando for colocar na produção, trocar o nome do serviço)
+    def getStatusAntVirus(self):
+        for service in psutil.win_service_iter():
+            if service.name() == 'mpssvc':
+                status = service.status()
+        
+        return status
 
-# Pega o status do Anti Virus (Quando for colocar na produção, trocar o nome do serviço)
-def getStatusAntVirus():
-    for service in psutil.win_service_iter():
-        if service.name() == 'mpssvc':
-            status = service.status()
-    
-    return status
+    # Inicia a coleta
+    def initColect(self):
+        # Verificando se a tabela exite:
+        #self.cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name ='infoMaq';")
 
-if __name__ == '__main__':
-    # Conectando ao BD
-    conn = sqlite3.connect('Data.db')
-
-    cursor = conn.cursor()
-
-    # Verificando se a tabela exite:
-    cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name ='infoMaq';")
-
-    if cursor.fetchone()[0] == 0:
-        # Criando a tabela (schema)
-        cursor.execute("""
-        CREATE TABLE infomaq (
+        #if self.cursor.fetchone()[0] == 0:
+            # Criando a tabela (schema)
+        self.cursor.execute("""
+        CREATE TABLE IF NOT EXISTS infomaq (
                         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                         Proc TEXT,
                         User TEXT,
@@ -154,17 +160,47 @@ if __name__ == '__main__':
                         DDR TEXT,
                         AntiVirus TEXT);
     """)
-
-    op_sis, model_sis, mem_ram, fab_sis = getSystemInfo()
-    serial = getSerialNumber()
-    clock_speed, ddr = getDDR()
-    proc = getProcInfo()
-    user = getUser()
-    status = getStatusAntVirus()
-
-    cursor.execute("""INSERT INTO infomaq (OpSis, ModelSis, FabSis,RamMem, Serial, ClockRam, DDR, Proc, User, AntiVirus) VALUES (?,?,?,?,?,?,?,?,?,?)
-                   """, (op_sis, model_sis, fab_sis, mem_ram, serial, clock_speed, ddr, proc, user, status))
     
-    conn.commit()
+        op_sis, model_sis, mem_ram, fab_sis = self.getSystemInfo()
+        serial = self.getSerialNumber()
+        clock_speed, ddr = self.getDDR()
+        proc = self.getProcInfo()
+        user = self.getUser()
+        status = self.getStatusAntVirus()
 
-    conn.close()
+        self.cursor.execute("""INSERT INTO infomaq (OpSis, ModelSis, FabSis,RamMem, Serial, ClockRam, DDR, Proc, User, AntiVirus) VALUES (?,?,?,?,?,?,?,?,?,?)
+                    """, (op_sis, model_sis, fab_sis, mem_ram, serial, clock_speed, ddr, proc, user, status))
+        
+        self.conn.commit()
+
+        self.conn.close()
+
+class MyService(win32serviceutil.ServiceFramework):
+    _svc_name_ = "GetInfo"
+    _svc_display_name_ = "Get System Info Background"
+
+    def __init__(self, args):
+        win32serviceutil.ServiceFramework.__init__(self,args)
+        self.stop_event = win32event.CreateEvent(None, 0, 0, None)
+        self.data_collector = DataCollector()
+    
+    def SvcDoRun(self):
+
+        def job():
+            self.data_collector.initColect()
+
+        schedule.every().day.do(job)
+
+        while True:
+            schedule.run_pending()
+            if win32event.WaitForSingleObject(self.stop_event, 10000) == win32event.WAIT_OBJECT_0:
+                break
+        
+    def SvcStop(self):
+        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+        win32event.SetEvent(self.stop_event)
+        self.ReportServiceStatus(win32service.SERVICE_STOPPED)
+
+if __name__ == '__main__':
+
+    win32serviceutil.HandleCommandLine(MyService)
