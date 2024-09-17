@@ -135,21 +135,25 @@ if __name__ == '__main__':
 
     cursor = conn.cursor()
 
-    # Criando a tabela (schema)
-    cursor.execute("""
-    CREATE TABLE infomaq (
-                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                    Proc TEXT,
-                    User TEXT,
-                    OpSis TEXT,
-                    FabSis TEXT,
-                    ModelSis TEXT,
-                    RamMem TEXT,
-                    Serial TEXT,
-                    ClockRam TEXT,
-                    DDR TEXT,
-                    AntiVirus TEXT);
-""")
+    # Verificando se a tabela exite:
+    cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name ='infoMaq';")
+
+    if cursor.fetchone()[0] == 0:
+        # Criando a tabela (schema)
+        cursor.execute("""
+        CREATE TABLE infomaq (
+                        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        Proc TEXT,
+                        User TEXT,
+                        OpSis TEXT,
+                        FabSis TEXT,
+                        ModelSis TEXT,
+                        RamMem TEXT,
+                        Serial TEXT,
+                        ClockRam TEXT,
+                        DDR TEXT,
+                        AntiVirus TEXT);
+    """)
 
     op_sis, model_sis, mem_ram, fab_sis = getSystemInfo()
     serial = getSerialNumber()
