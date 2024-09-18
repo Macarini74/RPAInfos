@@ -2,11 +2,7 @@ import subprocess
 import os
 import sqlite3
 import psutil
-import schedule
-import time
-import win32serviceutil
-import win32event
-import win32service
+
 
 class DataCollector:
     def __init__(self):
@@ -174,33 +170,3 @@ class DataCollector:
         self.conn.commit()
 
         self.conn.close()
-
-class MyService(win32serviceutil.ServiceFramework):
-    _svc_name_ = "GetInfo"
-    _svc_display_name_ = "Get System Info Background"
-
-    def __init__(self, args):
-        win32serviceutil.ServiceFramework.__init__(self,args)
-        self.stop_event = win32event.CreateEvent(None, 0, 0, None)
-        self.data_collector = DataCollector()
-    
-    def SvcDoRun(self):
-
-        def job():
-            self.data_collector.initColect()
-
-        schedule.every().day.do(job)
-
-        while True:
-            schedule.run_pending()
-            if win32event.WaitForSingleObject(self.stop_event, 10000) == win32event.WAIT_OBJECT_0:
-                break
-        
-    def SvcStop(self):
-        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-        win32event.SetEvent(self.stop_event)
-        self.ReportServiceStatus(win32service.SERVICE_STOPPED)
-
-if __name__ == '__main__':
-
-    win32serviceutil.HandleCommandLine(MyService)
