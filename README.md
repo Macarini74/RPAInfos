@@ -36,4 +36,4 @@ Additionally, the captured data is stored in a local SQLite database.
 
 Run the main script to capture system information and store it in the SQLite database:
 ```bash
-python infoMaq.py
+python main.py
