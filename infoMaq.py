@@ -6,9 +6,8 @@ import psutil
 
 class DataCollector:
     def __init__(self):
-        self.conn = sqlite3.connect('Data.db')
+        self.conn = sqlite3.connect('C:\\Users\\iagos\\OneDrive\\Área de Trabalho\\Internship\\InfoMaq\\Data.db')
         self.cursor = self.conn.cursor()
-        self.initColect()
 
     # Pegando informações do SO e quantos GB RAM:
     def getSystemInfo(self):
@@ -136,12 +135,9 @@ class DataCollector:
         return status
 
     # Inicia a coleta
-    def initColect(self):
-        # Verificando se a tabela exite:
-        #self.cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name ='infoMaq';")
+    def initCollect(self):
 
-        #if self.cursor.fetchone()[0] == 0:
-            # Criando a tabela (schema)
+        # Criando a tabela (schema)
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS infomaq (
                         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -169,4 +165,3 @@ class DataCollector:
         
         self.conn.commit()
 
-        self.conn.close()
